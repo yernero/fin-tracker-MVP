@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Viewer</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Transactions</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" name="file" id="file">
+        <input type="text" name="account" id="account" placeholder="Enter Account">
+        <button type="submit">Upload</button>
+    </form>
+
+    <h2>Accounts</h2>
+    <select id="accounts"></select>
+
+    <h2>Transactions</h2>
+    <table id="transactions-table">
+        <thead>
+            <tr>
+                <th>Booking Date</th>
+                <th>Amount</th>
+                <th>Credit Debit Indicator</th>
+                <th>Type</th>
+                <th>Type Group</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Card Ending</th>
+                <th>Account</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData();
+            formData.append('file', document.getElementById('file').files[0]);
+            formData.append('account', document.getElementById('account').value);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadAccounts();
+            });
+        });
+
+        function loadAccounts() {
+            fetch('/accounts')
+                .then(response => response.json())
+                .then(accounts => {
+                    const accountsSelect = document.getElementById('accounts');
+                    accountsSelect.innerHTML = '';
+                    accounts.forEach(account => {
+                        const option = document.createElement('option');
+                        option.value = account;
+                        option.textContent = account;
+                        accountsSelect.appendChild(option);
+                    });
+                });
+        }
+
+        document.getElementById('accounts').addEventListener('change', function() {
+            const account = this.value;
+            fetch(`/transactions/${account}`)
+                .then(response => response.json())
+                .then(transactions => {
+                    const tbody = document.getElementById('transactions-table').querySelector('tbody');
+                    tbody.innerHTML = '';
+                    transactions.forEach(transaction => {
+                        const row = document.createElement('tr');
+                        for (const key in transaction) {
+                            const cell = document.createElement('td');
+                            cell.textContent = transaction[key];
+                            row.appendChild(cell);
+                        }
+                        tbody.appendChild(row);
+                    });
+                });
+        });
+
+        window.onload = loadAccounts;
+    </script>
+</body>
+</html>
