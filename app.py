@@ -1,10 +1,33 @@
 from flask import Flask, request, jsonify, render_template
 import pandas as pd
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, MetaData, Table, Column, String, Float, Integer
 
 app = Flask(__name__)
 # Database setup
 engine = create_engine('sqlite:///transactions.db')
+metadata = MetaData()
+
+# Define the transactions table schema
+transactions = Table(
+    'transactions', metadata,
+    Column('Booking Date', String),
+    Column('Amount', Float),
+    Column('Credit Debit Indicator', String),
+    Column('Type', String),
+    Column('Type Group', String),
+    Column('Reference', String),
+    Column('Instructed Currency', String),
+    Column('Currency Exchange Rate', Float),
+    Column('Instructed Amount', Float),
+    Column('Description', String),
+    Column('Category', String),
+    Column('Check Serial Number', String),
+    Column('Card Ending', String),
+    Column('Account', String)
+)
+
+# Create the table if it does not exist
+metadata.create_all(engine)
 
 @app.route('/')
 def index():
@@ -12,25 +35,24 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files or 'account' not in request.form:
-        return jsonify({"message": "No file or account specified"}), 400
     file = request.files['file']
-    account = request.form['account']
+    account = request.form.get('account')
     if file and account:
         df = pd.read_csv(file)
         df['Account'] = account
         
-        # Check if the Account column exists, and add it if it does not
-        inspector = inspect(engine)
-        columns = inspector.get_columns('transactions')
-        column_names = [column['name'] for column in columns]
-        if 'Account' not in column_names:
-            with engine.connect() as conn:
-                conn.execute('ALTER TABLE transactions ADD COLUMN Account VARCHAR')
-        
+        # Print column names and first few rows for debugging
+        print(df.columns)
+        print(df.head())
+
         df.to_sql('transactions', engine, if_exists='append', index=False)
         return jsonify({"message": "File uploaded and data saved to database"}), 200
     return jsonify({"message": "No file uploaded or account not specified"}), 400
+
+@app.route('/debug')
+def debug():
+    df = pd.read_sql('transactions', engine)
+    return df.head().to_html()
 
 @app.route('/accounts', methods=['GET'])
 def get_accounts():
